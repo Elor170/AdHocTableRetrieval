@@ -111,7 +111,7 @@ public class Searcher {
             String docScoring = docExplanation.substring(0, docExplanation.indexOf(" "));
             Document document = indexSearcher.doc(docNum);
             String iteration = "Q0";
-            String table_id = "table-" + document.get("id");
+            String table_id = document.get("id");
             //todo need to implement
             int rank = 1;
 
