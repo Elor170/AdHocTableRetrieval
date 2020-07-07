@@ -12,12 +12,14 @@ import org.apache.lucene.search.*;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Scanner;
 
 public class Searcher {
     //TODO find the optimal weights
@@ -25,24 +27,19 @@ public class Searcher {
     static final float CAPTION_WEIGHT = (1 - TITLE_WEIGHT) / 3;
     static final float HEADER_WEIGHT = (1 - TITLE_WEIGHT) / 3;
     static final float COLUMN_WEIGHT = (1 - TITLE_WEIGHT) / 3;
+    static final String TEAM_NAME = "Elor_Lior";
+    static final String TAB = " ";
+    static final int RETRIEVE_DOCS_NUM = 20;
 
 
-    public static void main(String[] args) throws IOException{
+    public static void main(String[] args){
         LocalDateTime start = LocalDateTime.now();
 
-        Analyzer enAnalyzer = new EnglishAnalyzer();
-        Directory indexDirectory = FSDirectory.open(Paths.get("src\\main\\resources\\index"));
-        IndexReader indexReader = DirectoryReader.open(indexDirectory);
-        IndexSearcher indexSearcher = new IndexSearcher(indexReader);
-
         try {
-            searchQueries(indexSearcher, enAnalyzer);
-        } catch (ParseException e) {
+            searchQueries();
+        } catch (ParseException | IOException e) {
             e.printStackTrace();
         }
-
-        indexDirectory.close();
-        indexReader.close();
 
         LocalDateTime end = LocalDateTime.now();
         Duration timeElapsed = Duration.between(start, end);
@@ -50,10 +47,46 @@ public class Searcher {
                 timeElapsed.toSeconds() +" seconds");
     }
 
-    private static void searchQueries(IndexSearcher indexSearcher, Analyzer analyzer) throws ParseException, IOException {
-        // TODO add loop over the queries, and check the problem with table IDs...
+    private static void searchQueries() throws ParseException, IOException {
+        // TODO check the problem with table IDs
+        Analyzer enAnalyzer = new EnglishAnalyzer();
+        Directory indexDirectory = FSDirectory.open(Paths.get("src\\main\\resources\\index"));
+        IndexReader indexReader = DirectoryReader.open(indexDirectory);
+        IndexSearcher indexSearcher = new IndexSearcher(indexReader);
 
+        File queriesFile = new File("src\\main\\resources\\queries.txt");
+        Scanner fileReader = new Scanner(queriesFile);
+        while (fileReader.hasNextLine()) {
+            String queryLine = fileReader.nextLine();
+            int idEndIndex = queryLine.indexOf(" ");
+            String queryId;
+            String queryString;
+
+            if (idEndIndex != -1) {
+                queryId = queryLine.substring(0, idEndIndex);
+                queryString = queryLine.substring(idEndIndex + 1);
+            }
+            else {
+                queryId = queryLine;
+                queryString = " ";
+            }
+            System.out.print(queryId + ". ");
+            System.out.println(queryString);
+            // TODO check the problem with query #5
+            if (!queryId.equals("5"))
+                searchSingleQuery(indexSearcher, enAnalyzer, queryString, queryId);
+            System.out.println("    ");
+        }
+
+        indexDirectory.close();
+        indexReader.close();
         String queryString = "world interest rates table";
+
+    }
+
+    private static void searchSingleQuery(IndexSearcher indexSearcher, Analyzer analyzer,
+                                   String queryString, String queryId) throws ParseException, IOException {
+
         String[] fieldsNames = new String[]{"title", "caption", "header", "column"};
         Map<String,Float> fieldsWeights = new HashMap<>();
         fieldsWeights.put("title", TITLE_WEIGHT);
@@ -64,22 +97,19 @@ public class Searcher {
         QueryParser queryParser = new MultiFieldQueryParser(fieldsNames, analyzer, fieldsWeights);
         Query query = queryParser.parse(queryString);
 
-        int hitsPerPage = 20;
-
-        TopDocs topDocs = indexSearcher.search(query, hitsPerPage);
+        TopDocs topDocs = indexSearcher.search(query, RETRIEVE_DOCS_NUM);
         ScoreDoc[] scoreDocs = topDocs.scoreDocs;
 
-        System.out.println("Found " + scoreDocs.length + " hits:");
         for (ScoreDoc scoreDoc: scoreDocs){
             int docNum = scoreDoc.doc;
             String docExplanation = indexSearcher.explain(query, docNum).toString();
             String docScoring = docExplanation.substring(0, docExplanation.indexOf(" "));
             Document document = indexSearcher.doc(docNum);
-            System.out.print("<query id>" + "   ");
-            System.out.print("Q0" + "   ");
-            System.out.print("table-" + document.get("id") + "    ");
-            System.out.print(docScoring + "   ");
-            System.out.println("Elor_Lior");
+            System.out.print(queryId + TAB);
+            System.out.print("Q0" + TAB);
+            System.out.print("table-" + document.get("id") + TAB);
+            System.out.print(docScoring + TAB);
+            System.out.println(TEAM_NAME);
         }
     }
 }
