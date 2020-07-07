@@ -5,6 +5,7 @@ import org.apache.lucene.analysis.en.EnglishAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.queries.function.FunctionScoreQuery;
 import org.apache.lucene.queryparser.classic.MultiFieldQueryParser;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
@@ -23,11 +24,11 @@ import java.util.Map;
 import java.util.Scanner;
 
 public class Searcher {
-    //TODO find the optimal weights
-    static final float TITLE_WEIGHT = 0.1f;
-    static final float CAPTION_WEIGHT = (1 - TITLE_WEIGHT) / 3;
-    static final float HEADER_WEIGHT = (1 - TITLE_WEIGHT) / 3;
-    static final float COLUMN_WEIGHT = (1 - TITLE_WEIGHT) / 3;
+    //TODO find the optimal weights & alpha-delta
+    static final float TITLE_WEIGHT = 1;
+    static final float CAPTION_WEIGHT = 1;
+    static final float HEADER_WEIGHT = 1;
+    static final float COLUMN_WEIGHT = 1;
     static final String TEAM_NAME = "Elor_Lior";
     static final String TAB = " ";
     static final int RETRIEVE_DOCS_NUM = 20;
@@ -50,7 +51,6 @@ public class Searcher {
     }
 
     private static void searchQueries() throws ParseException, IOException {
-        // TODO check the problem with table IDs
         Analyzer enAnalyzer = new EnglishAnalyzer();
         Directory indexDirectory = FSDirectory.open(Paths.get("src\\main\\resources\\index"));
         IndexReader indexReader = DirectoryReader.open(indexDirectory);
@@ -71,20 +71,18 @@ public class Searcher {
             }
             else {
                 queryId = queryLine;
-                queryString = " ";
+                queryString = TAB;
+                System.out.print(queryId);
             }
             System.out.print(queryId + ". ");
             System.out.println(queryString);
-            // TODO check the problem with query #5
-            if (!queryId.equals("5"))
-                searchSingleQuery(indexSearcher, enAnalyzer, queryString, queryId,fw);
+            searchSingleQuery(indexSearcher, enAnalyzer, queryString, queryId,fw);
             System.out.println("    ");
         }
 
         indexDirectory.close();
         indexReader.close();
         fw.close();
-        String queryString = "world interest rates table";
     }
 
     private static void searchSingleQuery(IndexSearcher indexSearcher, Analyzer analyzer,
@@ -97,9 +95,18 @@ public class Searcher {
         fieldsWeights.put("header", HEADER_WEIGHT);
         fieldsWeights.put("column", COLUMN_WEIGHT);
 
-        QueryParser queryParser = new MultiFieldQueryParser(fieldsNames, analyzer, fieldsWeights);
-        Query query = queryParser.parse(queryString);
+        Query query;
+        // empty query case (query #5)
+        if (queryString.equals(TAB))
+            query = new MatchAllDocsQuery();
+        else {
+            QueryParser queryParser = new MultiFieldQueryParser(fieldsNames, analyzer, fieldsWeights);
+            query = queryParser.parse(queryString);
+        }
 
+        // add Interstigness
+        DoubleValuesSource boostByField = DoubleValuesSource.fromLongField("interestingness");
+        FunctionScoreQuery modifiedQuery = new FunctionScoreQuery(query, boostByField);
 
         TopDocs topDocs = indexSearcher.search(query, RETRIEVE_DOCS_NUM);
         ScoreDoc[] scoreDocs = topDocs.scoreDocs;
@@ -112,12 +119,17 @@ public class Searcher {
             Document document = indexSearcher.doc(docNum);
             String iteration = "Q0";
             String table_id = document.get("id");
-            //todo need to implement
-            int rank = 1;
+            //TODO need to implement
+            int rank = 0;
+            if (Double.parseDouble(docScoring) >= 17)
+                rank = 2;
+            else if (Double.parseDouble(docScoring) >= 13)
+                rank = 1;
 
             System.out.print(queryId + TAB);
             System.out.print(iteration + TAB);
             System.out.print(table_id + TAB);
+            System.out.print(rank + TAB);
             System.out.print(docScoring + TAB);
             System.out.println(TEAM_NAME);
 

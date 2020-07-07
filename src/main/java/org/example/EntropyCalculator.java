@@ -10,18 +10,21 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-//TODO add alpha and delta to table entropy
 
 public class EntropyCalculator {
     private Map<String, Integer> wordsColumnCount;
-    private double tableEntropy;
+    private long tableEntropy;
+    private long interestingness;
+    private final double DELTA = 0.9;
+    private final double ALPHA = 0.1;
 
     public EntropyCalculator() {
+
         this.wordsColumnCount = new HashMap<>();
         this.tableEntropy = 0;
     }
 
-    public void calcColumnEntropy(){
+    public void calcColumnEntropy(int columnNum){
         double entropyOfColumn = 0;
         double wordEntropy;
         int sumOfCount = 0;
@@ -33,7 +36,7 @@ public class EntropyCalculator {
             wordEntropy = prOfWord * (Math.log(prOfWord) / Math.log(2));
             entropyOfColumn -= wordEntropy;
         }
-        tableEntropy += entropyOfColumn;
+        tableEntropy += Math.pow(entropyOfColumn, columnNum);
     }
 
     public void updateCount(String cellString){
@@ -49,7 +52,7 @@ public class EntropyCalculator {
     }
 
 
-    static private List<String> string2Words(String text, Analyzer analyzer){
+    static public List<String> string2Words(String text, Analyzer analyzer){
         List<String> result = new ArrayList<>();
         TokenStream tokenStream = analyzer.tokenStream("---", text);
         CharTermAttribute attr = tokenStream.addAttribute(CharTermAttribute.class);
@@ -65,7 +68,12 @@ public class EntropyCalculator {
         return result;
     }
 
-    public double getTableEntropy() {
-        return tableEntropy;
+    public void clacInteresting(){
+        this.interestingness = (long) (ALPHA + Math.pow(tableEntropy, ALPHA));
     }
+
+    public long getInterestingness() {
+        return interestingness;
+    }
+
 }
