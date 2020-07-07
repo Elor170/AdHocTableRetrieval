@@ -16,12 +16,18 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.zip.GZIPInputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
+import java.util.zip.ZipInputStream;
 
 public class Indexer {
 
@@ -46,80 +52,95 @@ public class Indexer {
         LocalDateTime end = LocalDateTime.now();
         Duration timeElapsed = Duration.between(start, end);
         System.out.println("Time taken: "+ timeElapsed.toMinutes() +" minutes " +
-                timeElapsed.toSeconds() +" seconds");
+                timeElapsed.toSeconds() % 60 +" seconds");
     }
 
+    @SuppressWarnings("unchecked")
     private static int readTables(IndexWriter indexWriter) throws IOException, JSONException {
-
-        GZIPInputStream inputStream = new GZIPInputStream(
-                new FileInputStream("src\\main\\resources\\tables.json.gz"));
-        Reader reader = new InputStreamReader(inputStream);
-        BufferedReader buffer = new BufferedReader(reader);
-
+        ZipFile zipFile = new ZipFile("src\\main\\resources\\WP_tables.zip");
+        ZipInputStream inputStream = new ZipInputStream(
+                new FileInputStream("src\\main\\resources\\WP_tables.zip"));
+        Reader zipReader = new InputStreamReader(inputStream);
+        ZipEntry zipEntry ;
+        inputStream.getNextEntry(); // skip the folder
         int indexingCounter = 0;
-        String tableString;
-        tableString = buffer.readLine();
-        while ((tableString = buffer.readLine()) != null) {
 
-            // extract table data
-            JSONObject table = new JSONObject(tableString);
-            String idString = (String) table.get("_id");
-            String titleString = (String) table.get("pgTitle");
-            String captionString;
-            try {
-                captionString = (String) table.get("tableCaption");
-            } catch (JSONException e) {
-                captionString = "";
+
+        while ((zipEntry = inputStream.getNextEntry()) != null) {
+            InputStreamReader tableListReader = new InputStreamReader(zipFile.getInputStream(zipEntry),StandardCharsets.UTF_8);
+            BufferedReader streamReader = new BufferedReader(tableListReader);
+            StringBuilder tableListStrBuilder = new StringBuilder();
+
+            String inputStr;
+            while ((inputStr = streamReader.readLine()) != null)
+                tableListStrBuilder.append(inputStr);
+            JSONObject tableList = new JSONObject(tableListStrBuilder.toString());
+            Iterator<String> idsIterator = tableList.sortedKeys();
+            while(idsIterator.hasNext()) {
+                String tableId = idsIterator.next();
+                JSONObject table = (JSONObject) tableList.get(tableId);
+                Document tableDocument = table2Doc(table, tableId);
+
+                indexWriter.addDocument(tableDocument);
+                System.out.println("Index Num: " + indexingCounter++);
             }
+        }
 
-            // extract headers data
-            JSONArray headersArray = (JSONArray) ((JSONArray) table.get("tableHeaders")).get(0);
-            int numberOfColumns = headersArray.length();
-            List<String> headersStrings = new ArrayList<>();
-            for (int columnNum = 0; columnNum < numberOfColumns; columnNum++) {
-                JSONObject header = (JSONObject) headersArray.get(columnNum);
-                headersStrings.add((String) header.get("text"));
+        return indexingCounter;
+    }
+
+    private static Document table2Doc(JSONObject table, String idString) throws JSONException {
+        // extract table data
+        String titleString = (String) table.get("pgTitle");
+        String captionString;
+        try {
+            captionString = (String) table.get("caption");
+        } catch (JSONException e) {
+            captionString = "";
+        }
+
+        // extract headers data
+        JSONArray headersArray = (JSONArray) table.get("title");
+        int numberOfColumns = headersArray.length();
+        List<String> headersStrings = new ArrayList<>();
+        for (int columnNum = 0; columnNum < numberOfColumns; columnNum++)
+            headersStrings.add((String) headersArray.get(columnNum));
+
+        // extract cells data
+        JSONArray tableData = ((JSONArray)table.get("data"));
+        List<String> columnsStringsList = new ArrayList<>();
+        for (int columnNum = 0; columnNum < numberOfColumns; columnNum++)
+            columnsStringsList.add("");
+
+        int numberOfRows = tableData.length();
+        for(int columnNum = 0; columnNum < numberOfColumns; columnNum++){
+            for(int rowNum = 0; rowNum < numberOfRows; rowNum++){
+                JSONArray tableRowArray = (JSONArray) tableData.get(rowNum);
+                String cellString = (String)tableRowArray.get(columnNum);
+                String oldColumnString = columnsStringsList.get(columnNum);
+                columnsStringsList.set(columnNum, oldColumnString + "\n" +  cellString);
             }
+        }
 
-            // extract cells data
-            JSONArray tableData = ((JSONArray)table.get("tableData"));
-            List<String> columnsStringsList = new ArrayList<>();
-            for (int columnNum = 0; columnNum < numberOfColumns; columnNum++)
-                columnsStringsList.add("");
+        // save as document
+        Document tableDocument = new Document();
 
-            int numberOfRows = tableData.length();
-            for(int columnNum = 0; columnNum < numberOfColumns; columnNum++){
-                for(int rowNum = 0; rowNum < numberOfRows; rowNum++){
-                    JSONArray tableRowArray = (JSONArray) tableData.get(rowNum);
-                    String cellString = (String) ((JSONObject)tableRowArray.get(columnNum)).get("text");
-                    String oldColumnString = columnsStringsList.get(columnNum);
-                    columnsStringsList.set(columnNum, oldColumnString + "\n" +  cellString);
-                }
-            }
+        StringField idField = new StringField("id", idString, Field.Store.YES);
+        TextField titleField = new TextField("title", titleString, Field.Store.NO);
+        TextField captionField = new TextField("caption", captionString, Field.Store.NO);
+        tableDocument.add(idField);
+        tableDocument.add(titleField);
+        tableDocument.add(captionField);
+        for (String headerString: headersStrings){
+            TextField headerField = new TextField("header", headerString, Field.Store.NO);
+            tableDocument.add(headerField);
+        }
+        for (String columnString: columnsStringsList){
+            TextField columnField = new TextField("column", columnString, Field.Store.NO);
+            tableDocument.add(columnField);
+        }
 
-
-            // save as document
-            Document tableDocument = new Document();
-
-            StringField idField = new StringField("id", idString, Field.Store.YES);
-            TextField titleField = new TextField("title", titleString, Field.Store.NO);
-            TextField captionField = new TextField("caption", captionString, Field.Store.NO);
-            tableDocument.add(idField);
-            tableDocument.add(titleField);
-            tableDocument.add(captionField);
-            for (String headerString: headersStrings){
-                TextField headerField = new TextField("header", headerString, Field.Store.NO);
-                tableDocument.add(headerField);
-            }
-            for (String columnString: columnsStringsList){
-                TextField columnField = new TextField("column", columnString, Field.Store.NO);
-                tableDocument.add(columnField);
-            }
-
-            indexWriter.addDocument(tableDocument);
-
-
-            // table printing
+        // table printing
 //            System.out.println("ID: " + idString + "\n"
 //                    + "Title: " + titleString + "\n"
 //                    + "Caption: " + captionString);
@@ -130,8 +151,7 @@ public class Indexer {
 //                System.out.println(columnsStringsList.get(columnNum));
 //                columnNum++;
 //            }
-            System.out.println("Index Num: " + indexingCounter++);
-        }
-        return indexingCounter;
+
+        return tableDocument;
     }
 }
