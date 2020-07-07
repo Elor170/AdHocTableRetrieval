@@ -2,13 +2,8 @@ package org.example;
 
 
 import org.apache.lucene.analysis.Analyzer;
-import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.en.EnglishAnalyzer;
-import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
-import org.apache.lucene.document.Document;
-import org.apache.lucene.document.Field;
-import org.apache.lucene.document.StringField;
-import org.apache.lucene.document.TextField;
+import org.apache.lucene.document.*;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.store.Directory;
@@ -53,6 +48,7 @@ public class Indexer {
         System.out.println("Time taken: "+ timeElapsed.toMinutes() +" minutes " +
                 timeElapsed.toSeconds() % 60 +" seconds");
     }
+    static final int NUMBER_OF_TABLES = 1653432;
 
     @SuppressWarnings("unchecked")
     private static int readTables(IndexWriter indexWriter) throws IOException, JSONException {
@@ -81,7 +77,9 @@ public class Indexer {
                 Document tableDocument = table2Doc(table, tableId);
 
                 indexWriter.addDocument(tableDocument);
-                System.out.println("Index Num: " + indexingCounter++);
+                double indexPercents = (double)indexingCounter/(double)NUMBER_OF_TABLES;
+                System.out.println("Index Num: " + indexingCounter++ +
+                        "      " + indexPercents + "%");
             }
         }
 
@@ -125,50 +123,62 @@ public class Indexer {
 
                 entropyCalc.updateCount(cellString);
             }
-            entropyCalc.calcColumnEntropy();
+            entropyCalc.calcColumnEntropy(columnNum);
         }
 
-
-        // table printing
-//            System.out.println("ID: " + idString + "\n"
-//                    + "Title: " + titleString + "\n"
-//                    + "Caption: " + captionString);
-//            int columnNum = 0;
-//            for (String headerString: headersStrings){
-//                System.out.println("----------------------");
-//                System.out.print( "Header " + columnNum + ": " + headerString);
-//                System.out.println(columnsStringsList.get(columnNum));
-//                columnNum++;
-//            }
-//            System.out.println("Table " + idString + " entropy of : " + entropyCalc.getTableEntropy());
-
         return creatDocument(idString, titleString, captionString,headersStrings, columnsStringsList,
-                entropyCalc.getTableEntropy());
+                entropyCalc.getInterestingness());
     }
 
     private static Document creatDocument(String idString, String titleString, String captionString,
-                         List<String> headersStrings, List<String> columnsStringsList, double tableEntropy){
+                         List<String> headersStrings, List<String> columnsStringsList, long tableInterestingness){
         Document tableDocument = new Document();
+
         StringField idField = new StringField("id", idString, Field.Store.YES);
+        titleString = preAnalyze(titleString);
         TextField titleField = new TextField("title", titleString, Field.Store.NO);
         TextField captionField = new TextField("caption", captionString, Field.Store.NO);
-        //TODO add Entropy Field here
-        //System.out.println(tableEntropy);
         tableDocument.add(idField);
         tableDocument.add(titleField);
         tableDocument.add(captionField);
+        tableDocument.add(new NumericDocValuesField("interestingness", tableInterestingness));
         int i = 1;
         for (String headerString: headersStrings){
+            headerString = preAnalyze(headerString);
             TextField headerField = new TextField("header" + i, headerString, Field.Store.NO);
             tableDocument.add(headerField);
             i++;
         }
         for (String columnString: columnsStringsList){
+            columnString = preAnalyze(columnString);
             TextField columnField = new TextField("column", columnString, Field.Store.NO);
             tableDocument.add(columnField);
         }
 
+        // table printing
+//        printTable(idString, titleString, captionString,headersStrings, columnsStringsList,
+//                tableInterestingness);
+
         return tableDocument;
+    }
+
+    private static void printTable(String idString, String titleString, String captionString,
+                        List<String> headersStrings, List<String> columnsStringsList, long tableInterestingness){
+        System.out.println("ID: " + idString + "\n"
+                + "Title: " + titleString + "\n"
+                + "Caption: " + captionString);
+        int columnNum = 0;
+        for (String headerString: headersStrings){
+            System.out.println("----------------------");
+            System.out.print( "Header " + columnNum + ": " + headerString);
+            System.out.println(columnsStringsList.get(columnNum));
+            columnNum++;
+        }
+    }
+
+    private static String preAnalyze(String text){
+        text = text.replace("_", " ");
+        return text;
     }
 
 }
