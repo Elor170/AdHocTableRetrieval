@@ -2,7 +2,9 @@ package org.example;
 
 
 import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.en.EnglishAnalyzer;
+import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.StringField;
@@ -19,15 +21,12 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.time.Duration;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.zip.GZIPInputStream;
+import java.util.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipInputStream;
+
 
 public class Indexer {
 
@@ -90,6 +89,7 @@ public class Indexer {
     }
 
     private static Document table2Doc(JSONObject table, String idString) throws JSONException {
+
         // extract table data
         String titleString = (String) table.get("pgTitle");
         String captionString;
@@ -113,32 +113,21 @@ public class Indexer {
             columnsStringsList.add("");
 
         int numberOfRows = tableData.length();
+        EntropyCalculator entropyCalc = new EntropyCalculator();
+
         for(int columnNum = 0; columnNum < numberOfColumns; columnNum++){
+
             for(int rowNum = 0; rowNum < numberOfRows; rowNum++){
                 JSONArray tableRowArray = (JSONArray) tableData.get(rowNum);
                 String cellString = (String)tableRowArray.get(columnNum);
                 String oldColumnString = columnsStringsList.get(columnNum);
                 columnsStringsList.set(columnNum, oldColumnString + "\n" +  cellString);
+
+                entropyCalc.updateCount(cellString);
             }
+            entropyCalc.calcColumnEntropy();
         }
 
-        // save as document
-        Document tableDocument = new Document();
-
-        StringField idField = new StringField("id", idString, Field.Store.YES);
-        TextField titleField = new TextField("title", titleString, Field.Store.NO);
-        TextField captionField = new TextField("caption", captionString, Field.Store.NO);
-        tableDocument.add(idField);
-        tableDocument.add(titleField);
-        tableDocument.add(captionField);
-        for (String headerString: headersStrings){
-            TextField headerField = new TextField("header", headerString, Field.Store.NO);
-            tableDocument.add(headerField);
-        }
-        for (String columnString: columnsStringsList){
-            TextField columnField = new TextField("column", columnString, Field.Store.NO);
-            tableDocument.add(columnField);
-        }
 
         // table printing
 //            System.out.println("ID: " + idString + "\n"
@@ -151,7 +140,35 @@ public class Indexer {
 //                System.out.println(columnsStringsList.get(columnNum));
 //                columnNum++;
 //            }
+//            System.out.println("Table " + idString + " entropy of : " + entropyCalc.getTableEntropy());
+
+        return creatDocument(idString, titleString, captionString,headersStrings, columnsStringsList,
+                entropyCalc.getTableEntropy());
+    }
+
+    private static Document creatDocument(String idString, String titleString, String captionString,
+                         List<String> headersStrings, List<String> columnsStringsList, double tableEntropy){
+        Document tableDocument = new Document();
+        StringField idField = new StringField("id", idString, Field.Store.YES);
+        TextField titleField = new TextField("title", titleString, Field.Store.NO);
+        TextField captionField = new TextField("caption", captionString, Field.Store.NO);
+        //TODO add Entropy Field here
+        //System.out.println(tableEntropy);
+        tableDocument.add(idField);
+        tableDocument.add(titleField);
+        tableDocument.add(captionField);
+        int i = 1;
+        for (String headerString: headersStrings){
+            TextField headerField = new TextField("header" + i, headerString, Field.Store.NO);
+            tableDocument.add(headerField);
+            i++;
+        }
+        for (String columnString: columnsStringsList){
+            TextField columnField = new TextField("column", columnString, Field.Store.NO);
+            tableDocument.add(columnField);
+        }
 
         return tableDocument;
     }
+
 }

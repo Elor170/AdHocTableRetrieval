@@ -24,7 +24,7 @@ import java.util.Scanner;
 
 public class Searcher {
     //TODO find the optimal weights
-    static final float TITLE_WEIGHT = 0.2f;
+    static final float TITLE_WEIGHT = 0.1f;
     static final float CAPTION_WEIGHT = (1 - TITLE_WEIGHT) / 3;
     static final float HEADER_WEIGHT = (1 - TITLE_WEIGHT) / 3;
     static final float COLUMN_WEIGHT = (1 - TITLE_WEIGHT) / 3;
@@ -46,7 +46,7 @@ public class Searcher {
         LocalDateTime end = LocalDateTime.now();
         Duration timeElapsed = Duration.between(start, end);
         System.out.println("Time taken: "+ timeElapsed.toMinutes() +" minutes " +
-                timeElapsed.toSeconds() +" seconds");
+                timeElapsed.toSeconds() % 60  +" seconds");
     }
 
     private static void searchQueries() throws ParseException, IOException {
