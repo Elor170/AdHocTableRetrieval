@@ -10,6 +10,8 @@ import org.apache.lucene.queryparser.classic.MultiFieldQueryParser;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.*;
+import org.apache.lucene.search.similarities.BM25Similarity;
+import org.apache.lucene.search.similarities.Similarity;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 
@@ -25,10 +27,10 @@ import java.util.Scanner;
 
 public class Searcher {
     //TODO find the optimal weights & alpha-delta
-    static final float TITLE_WEIGHT = 1;
-    static final float CAPTION_WEIGHT = 1;
-    static final float HEADER_WEIGHT = 1;
-    static final float COLUMN_WEIGHT = 1;
+    static float TITLE_WEIGHT = 1.613f;
+    static float CAPTION_WEIGHT = 1.118f;
+    static float HEADER_WEIGHT = 0.218f ;// not relevant
+    static float COLUMN_WEIGHT = 1f;
     static final String TEAM_NAME = "Elor_Lior";
     static final String TAB = " ";
     static final int RETRIEVE_DOCS_NUM = 20;
@@ -55,6 +57,8 @@ public class Searcher {
         Directory indexDirectory = FSDirectory.open(Paths.get("src\\main\\resources\\index"));
         IndexReader indexReader = DirectoryReader.open(indexDirectory);
         IndexSearcher indexSearcher = new IndexSearcher(indexReader);
+        Similarity similarity = new BM25Similarity(1.2f,0.75f);
+        indexSearcher.setSimilarity(similarity);
         FileWriter fw = new FileWriter(OUT_FILE);
 
         File queriesFile = new File("src\\main\\resources\\queries.txt");
@@ -104,7 +108,7 @@ public class Searcher {
             query = queryParser.parse(queryString);
         }
 
-        // add Interstigness
+        //TODO add Interstigness
         DoubleValuesSource boostByField = DoubleValuesSource.fromLongField("interestingness");
         FunctionScoreQuery modifiedQuery = new FunctionScoreQuery(query, boostByField);
 
@@ -120,11 +124,11 @@ public class Searcher {
             String iteration = "Q0";
             String table_id = document.get("id");
             //TODO need to implement
-            int rank = 0;
-            if (Double.parseDouble(docScoring) >= 17)
-                rank = 2;
-            else if (Double.parseDouble(docScoring) >= 13)
-                rank = 1;
+            int rank = 1;
+//            if (Double.parseDouble(docScoring) >= 17)
+//                rank = 2;
+//            else if (Double.parseDouble(docScoring) >= 13)
+//                rank = 1;
 
             System.out.print(queryId + TAB);
             System.out.print(iteration + TAB);
@@ -145,4 +149,5 @@ public class Searcher {
             fw.write(result + System.lineSeparator());
         }
     }
+
 }
