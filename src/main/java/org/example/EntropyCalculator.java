@@ -13,8 +13,8 @@ import java.util.Map;
 
 public class EntropyCalculator {
     private Map<String, Integer> wordsColumnCount;
-    private long tableEntropy;
-    private long interestingness;
+    private float tableEntropy;
+    private float interestingness;
     private final double DELTA = 0.9;
     private final double ALPHA = 0.1;
 
@@ -25,18 +25,18 @@ public class EntropyCalculator {
     }
 
     public void calcColumnEntropy(int columnNum){
-        double entropyOfColumn = 0;
-        double wordEntropy;
+        float entropyOfColumn = 0;
+        float wordEntropy;
         int sumOfCount = 0;
         for(Map.Entry<String, Integer> singleWordCount: wordsColumnCount.entrySet())
             sumOfCount += singleWordCount.getValue();
 
         for(Map.Entry<String, Integer> singleWordCount: wordsColumnCount.entrySet()){
-            double prOfWord = ((double)singleWordCount.getValue())/sumOfCount;
-            wordEntropy = prOfWord * (Math.log(prOfWord) / Math.log(2));
+            float prOfWord = ((float)singleWordCount.getValue())/(float) sumOfCount;
+            wordEntropy = (float) (prOfWord * (Math.log(prOfWord) / Math.log(2)));
             entropyOfColumn -= wordEntropy;
         }
-        tableEntropy += Math.pow(entropyOfColumn, columnNum);
+        tableEntropy += entropyOfColumn * Math.pow(DELTA, columnNum);
     }
 
     public void updateCount(String cellString){
@@ -69,10 +69,10 @@ public class EntropyCalculator {
     }
 
     public void clacInteresting(){
-        this.interestingness = (long) (ALPHA + Math.pow(tableEntropy, ALPHA));
+        this.interestingness = (float) (ALPHA + Math.pow(tableEntropy, ALPHA));
     }
 
-    public long getInterestingness() {
+    public float getInterestingness() {
         return interestingness;
     }
 

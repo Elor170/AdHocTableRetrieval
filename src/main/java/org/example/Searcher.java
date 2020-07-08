@@ -5,13 +5,16 @@ import org.apache.lucene.analysis.en.EnglishAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.Term;
 import org.apache.lucene.queries.function.FunctionScoreQuery;
 import org.apache.lucene.queryparser.classic.MultiFieldQueryParser;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
+import org.apache.lucene.queryparser.flexible.standard.builders.SynonymQueryNodeBuilder;
 import org.apache.lucene.search.*;
 import org.apache.lucene.search.similarities.BM25Similarity;
 import org.apache.lucene.search.similarities.Similarity;
+import org.apache.lucene.search.similarities.TFIDFSimilarity;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 
@@ -125,8 +128,8 @@ public class Searcher {
             query = queryParser.parse(queryString);
         }
 
-        //TODO add Interstigness
-        DoubleValuesSource boostByField = DoubleValuesSource.fromLongField("interestingness");
+        //add Interstigness - not working
+        DoubleValuesSource boostByField = DoubleValuesSource.fromFloatField("interestingness");
         FunctionScoreQuery modifiedQuery = new FunctionScoreQuery(query, boostByField);
 
         TopDocs topDocs = indexSearcher.search(query, RETRIEVE_DOCS_NUM);
@@ -135,7 +138,6 @@ public class Searcher {
         for (ScoreDoc scoreDoc: scoreDocs){
             int docNum = scoreDoc.doc;
             String docExplanation = indexSearcher.explain(query, docNum).toString();
-
             String docScoring = docExplanation.substring(0, docExplanation.indexOf(" "));
             Document document = indexSearcher.doc(docNum);
             String iteration = "Q0";
@@ -143,11 +145,11 @@ public class Searcher {
             String table_id = document.get("id");
             //TODO need to implement
 
-            int rank = 1;
-//            if (Double.parseDouble(docScoring) >= 17)
-//                rank = 2;
-//            else if (Double.parseDouble(docScoring) >= 13)
-//                rank = 1;
+            int rank = 0;
+            if (Double.parseDouble(docScoring) >= 15)
+                rank = 2;
+            else if (Double.parseDouble(docScoring) >= 10)
+                rank = 1;
 
             System.out.print(queryId + TAB);
             System.out.print(iteration + TAB);
