@@ -26,18 +26,23 @@ import java.util.Map;
 import java.util.Scanner;
 
 public class Searcher {
+
+    static float INTERESTINGNESS_WEIGHT = 0.1f; // not relevant
     //TODO find the optimal weights & alpha-delta
     static float TITLE_WEIGHT = 1.613f;
     static float CAPTION_WEIGHT = 1.118f;
     static float HEADER_WEIGHT = 0.218f ;// not relevant
     static float COLUMN_WEIGHT = 1f;
+
     static final String TEAM_NAME = "Elor_Lior";
-    static final String TAB = " ";
+    static final String TAB = "\t";
     static final int RETRIEVE_DOCS_NUM = 20;
     static final String OUT_FILE = "trec_eval\\results.txt";
+    private static final boolean RUN_AUTO_EVALUATION = true;
 
 
-    public static void main(String[] args){
+
+    public static void main(String[] args) {
         LocalDateTime start = LocalDateTime.now();
 
         try {
@@ -46,10 +51,21 @@ public class Searcher {
             e.printStackTrace();
         }
 
+        if (RUN_AUTO_EVALUATION)
+            runEvaluation();
+
+
+        try {
+            Thread.sleep(3000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
         LocalDateTime end = LocalDateTime.now();
         Duration timeElapsed = Duration.between(start, end);
-        System.out.println("Time taken: "+ timeElapsed.toMinutes() +" minutes " +
-                timeElapsed.toSeconds() % 60  +" seconds");
+        System.out.println("Time taken: " + timeElapsed.toMinutes() + " minutes " +
+                timeElapsed.toSeconds() % 60 + " seconds");
+
     }
 
     private static void searchQueries() throws ParseException, IOException {
@@ -98,6 +114,7 @@ public class Searcher {
         fieldsWeights.put("caption", CAPTION_WEIGHT);
         fieldsWeights.put("header", HEADER_WEIGHT);
         fieldsWeights.put("column", COLUMN_WEIGHT);
+        fieldsWeights.put("interestingness", INTERESTINGNESS_WEIGHT);
 
         Query query;
         // empty query case (query #5)
@@ -122,8 +139,10 @@ public class Searcher {
             String docScoring = docExplanation.substring(0, docExplanation.indexOf(" "));
             Document document = indexSearcher.doc(docNum);
             String iteration = "Q0";
+
             String table_id = document.get("id");
             //TODO need to implement
+
             int rank = 1;
 //            if (Double.parseDouble(docScoring) >= 17)
 //                rank = 2;
@@ -150,4 +169,17 @@ public class Searcher {
         }
     }
 
+    private static void runEvaluation(){
+        try {
+            String[] command = {"cmd.exe", "/C", "Start", "trec_batch_ndcg_cut.bat"};
+            File dir = new File("trec_eval");
+            ProcessBuilder pb = new ProcessBuilder(command);
+            pb.directory(dir);
+            pb.start();
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+    }
 }
