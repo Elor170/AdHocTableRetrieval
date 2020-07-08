@@ -135,7 +135,6 @@ public class Indexer {
         Document tableDocument = new Document();
 
         StringField idField = new StringField("id", idString, Field.Store.YES);
-        titleString = preAnalyze(titleString);
         TextField titleField = new TextField("title", titleString, Field.Store.NO);
         TextField captionField = new TextField("caption", captionString, Field.Store.NO);
         tableDocument.add(idField);
@@ -144,13 +143,11 @@ public class Indexer {
         tableDocument.add(new NumericDocValuesField("interestingness", tableInterestingness));
         int i = 1;
         for (String headerString: headersStrings){
-            headerString = preAnalyze(headerString);
             TextField headerField = new TextField("header" + i, headerString, Field.Store.NO);
             tableDocument.add(headerField);
             i++;
         }
         for (String columnString: columnsStringsList){
-            columnString = preAnalyze(columnString);
             TextField columnField = new TextField("column", columnString, Field.Store.NO);
             tableDocument.add(columnField);
         }
@@ -176,9 +173,5 @@ public class Indexer {
         }
     }
 
-    private static String preAnalyze(String text){
-        text = text.replace("_", " ");
-        return text;
-    }
 
 }
