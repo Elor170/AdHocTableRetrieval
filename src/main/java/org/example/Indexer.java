@@ -125,13 +125,14 @@ public class Indexer {
             }
             entropyCalc.calcColumnEntropy(columnNum);
         }
+        entropyCalc.clacInteresting();
 
         return creatDocument(idString, titleString, captionString,headersStrings, columnsStringsList,
                 entropyCalc.getInterestingness());
     }
 
     private static Document creatDocument(String idString, String titleString, String captionString,
-                         List<String> headersStrings, List<String> columnsStringsList, long tableInterestingness){
+                         List<String> headersStrings, List<String> columnsStringsList, float tableInterestingness){
         Document tableDocument = new Document();
 
         StringField idField = new StringField("id", idString, Field.Store.YES);
@@ -140,12 +141,11 @@ public class Indexer {
         tableDocument.add(idField);
         tableDocument.add(titleField);
         tableDocument.add(captionField);
-        tableDocument.add(new NumericDocValuesField("interestingness", tableInterestingness));
-        int i = 1;
+        tableDocument.add(new FloatDocValuesField("interestingness", tableInterestingness));
+
         for (String headerString: headersStrings){
-            TextField headerField = new TextField("header" + i, headerString, Field.Store.NO);
+            TextField headerField = new TextField("header", headerString, Field.Store.NO);
             tableDocument.add(headerField);
-            i++;
         }
         for (String columnString: columnsStringsList){
             TextField columnField = new TextField("column", columnString, Field.Store.NO);
@@ -160,7 +160,7 @@ public class Indexer {
     }
 
     private static void printTable(String idString, String titleString, String captionString,
-                        List<String> headersStrings, List<String> columnsStringsList, long tableInterestingness){
+                        List<String> headersStrings, List<String> columnsStringsList, float tableInterestingness){
         System.out.println("ID: " + idString + "\n"
                 + "Title: " + titleString + "\n"
                 + "Caption: " + captionString);
