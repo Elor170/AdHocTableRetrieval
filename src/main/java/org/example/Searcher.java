@@ -19,34 +19,50 @@ import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 
 public class Searcher {
     //TODO find the optimal weights
-    static final float TITLE_WEIGHT = 0.2f;
-    static final float CAPTION_WEIGHT = (1 - TITLE_WEIGHT) / 3;
-    static final float HEADER_WEIGHT = (1 - TITLE_WEIGHT) / 3;
-    static final float COLUMN_WEIGHT = (1 - TITLE_WEIGHT) / 3;
+
+    static float TITLE_WEIGHT = 0.432f;
+    static float CAPTION_WEIGHT = 0.13f;
+    static float HEADER_WEIGHT = 0.218f ;
+    static float COLUMN_WEIGHT = 1 - TITLE_WEIGHT -CAPTION_WEIGHT - HEADER_WEIGHT;
     static final String TEAM_NAME = "Elor_Lior";
     static final String TAB = " ";
     static final int RETRIEVE_DOCS_NUM = 20;
     static final String OUT_FILE = "trec_eval\\results.txt";
+    private static final boolean RUN_AUTO_EVALUATION = true;
 
 
-    public static void main(String[] args){
+
+    public static void main(String[] args) {
         LocalDateTime start = LocalDateTime.now();
 
-        try {
-            searchQueries();
-        } catch (ParseException | IOException e) {
-            e.printStackTrace();
-        }
+            try {
+                searchQueries();
+            } catch (ParseException | IOException e) {
+                e.printStackTrace();
+            }
 
-        LocalDateTime end = LocalDateTime.now();
-        Duration timeElapsed = Duration.between(start, end);
-        System.out.println("Time taken: "+ timeElapsed.toMinutes() +" minutes " +
-                timeElapsed.toSeconds() +" seconds");
+            if(RUN_AUTO_EVALUATION)
+
+
+            runEvaluation();
+
+            LocalDateTime end = LocalDateTime.now();
+
+            try {
+                Thread.sleep(2500);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+            Duration timeElapsed = Duration.between(start, end);
+            System.out.println("Time taken: " + timeElapsed.toMinutes() + " minutes " +
+                    timeElapsed.toSeconds() + " seconds");
     }
 
     private static void searchQueries() throws ParseException, IOException {
@@ -111,7 +127,7 @@ public class Searcher {
             String docScoring = docExplanation.substring(0, docExplanation.indexOf(" "));
             Document document = indexSearcher.doc(docNum);
             String iteration = "Q0";
-            String table_id = "table-" + document.get("id");
+            String table_id =  document.get("id");
             //todo need to implement
             int rank = 1;
 
@@ -132,5 +148,20 @@ public class Searcher {
 
             fw.write(result + System.lineSeparator());
         }
+    }
+
+
+    private static void runEvaluation(){
+        try {
+            String[] command = {"cmd.exe", "/C", "Start", "trec_batch_ndcg_cut.bat"};
+            File dir = new File("trec_eval");
+            ProcessBuilder pb = new ProcessBuilder(command);
+            pb.directory(dir);
+            pb.start();
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
     }
 }
