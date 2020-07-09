@@ -89,7 +89,7 @@ public class Searcher {
             }
             System.out.print(queryId + ". ");
             System.out.println(queryString);
-            searchSingleQuery(indexSearcher, enAnalyzer, queryString, queryId,fw);
+            searchSingleQuery(indexSearcher, enAnalyzer, queryString, queryId,fw, indexReader);
             System.out.println("    ");
         }
 
@@ -99,7 +99,7 @@ public class Searcher {
     }
 
     private static void searchSingleQuery(IndexSearcher indexSearcher, Analyzer analyzer,
-                                   String queryString, String queryId, FileWriter fw) throws ParseException, IOException {
+                                   String queryString, String queryId, FileWriter fw, IndexReader indexReader) throws ParseException, IOException {
 
         String[] fieldsNames = new String[]{"title", "caption", "header", "column"};
         Map<String,Float> fieldsWeights = new HashMap<>();
@@ -129,6 +129,7 @@ public class Searcher {
             String docScoring = docExplanation.substring(0, docExplanation.indexOf(" "));
             Document document = indexSearcher.doc(docNum);
             String iteration = "Q0";
+            Object a = indexReader.getTermVectors(docNum);
 
             String table_id = document.get("id");
 
