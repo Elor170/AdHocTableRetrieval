@@ -4,8 +4,10 @@ package org.example;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.en.EnglishAnalyzer;
 import org.apache.lucene.document.*;
+import org.apache.lucene.index.IndexOptions;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
+import org.apache.lucene.index.Term;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.json.JSONArray;
@@ -24,6 +26,17 @@ import java.util.zip.ZipInputStream;
 
 
 public class Indexer {
+
+
+    public static final FieldType TYPE_STORED = new FieldType();
+    static {
+        TYPE_STORED.setIndexOptions(IndexOptions.DOCS_AND_FREQS);
+        TYPE_STORED.setTokenized(true);
+        TYPE_STORED.setStored(true);
+        TYPE_STORED.setStoreTermVectors(true);
+        TYPE_STORED.setStoreTermVectorPositions(true);
+        TYPE_STORED.freeze();
+    }
 
     public static void main( String[] args ) throws IOException {
         LocalDateTime start = LocalDateTime.now();
@@ -59,6 +72,12 @@ public class Indexer {
         ZipEntry zipEntry ;
         inputStream.getNextEntry(); // skip the folder
         int indexingCounter = 0;
+
+        FieldType fieldType = new FieldType();
+        fieldType.setStoreTermVectors(true);
+        fieldType.setStoreTermVectorPositions(true);
+        fieldType.setIndexOptions(IndexOptions.DOCS_AND_FREQS);
+        fieldType.setStored(true);
 
 
         while ((zipEntry = inputStream.getNextEntry()) != null) {
@@ -134,13 +153,14 @@ public class Indexer {
     private static Document creatDocument(String idString, String titleString, String captionString,
                          List<String> headersStrings, List<String> columnsStringsList, float tableInterestingness){
         Document tableDocument = new Document();
-
         StringField idField = new StringField("id", idString, Field.Store.YES);
-        TextField titleField = new TextField("title", titleString, Field.Store.NO);
+        TextField titleField = new TextField( "title", titleString, Field.Store.NO);
+
         TextField captionField = new TextField("caption", captionString, Field.Store.NO);
         tableDocument.add(idField);
         tableDocument.add(titleField);
         tableDocument.add(captionField);
+
         tableDocument.add(new FloatDocValuesField("interestingness", tableInterestingness));
 
         for (String headerString: headersStrings){
@@ -149,8 +169,14 @@ public class Indexer {
         }
         for (String columnString: columnsStringsList){
             TextField columnField = new TextField("column", columnString, Field.Store.NO);
+            Field content = new Field("content", columnString, TYPE_STORED);
+            columnField.fieldType().storeTermVectors();
             tableDocument.add(columnField);
+            tableDocument.add(content );
+
         }
+
+
 
         // table printing
 //        printTable(idString, titleString, captionString,headersStrings, columnsStringsList,
