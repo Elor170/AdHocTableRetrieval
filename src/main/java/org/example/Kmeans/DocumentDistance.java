@@ -1,8 +1,6 @@
 package org.example.Kmeans;
 import java.io.IOException;
 import java.nio.file.Paths;
-import java.time.Duration;
-import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -10,12 +8,7 @@ import java.util.Set;
 
 import org.apache.commons.math3.linear.ArrayRealVector;
 import org.apache.commons.math3.linear.RealVector;
-import org.apache.lucene.codecs.compressing.CompressingTermVectorsReader;
-import org.apache.lucene.codecs.compressing.CompressingTermVectorsReader.*;
-import org.apache.lucene.document.Document;
 import org.apache.lucene.index.*;
-import org.apache.lucene.queryparser.classic.ParseException;
-import org.apache.lucene.search.similarities.TFIDFSimilarity;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.BytesRef;
@@ -35,8 +28,8 @@ public class DocumentDistance {
             indexDirectory = FSDirectory.open(Paths.get("src\\main\\resources\\index"));
             IndexReader reader = DirectoryReader.open(indexDirectory);
 
-            Map<String, Double> a = getWeights(reader, 1);
-            double q = getCosineSimilarity(reader, 1, 1);
+            Map<String, Double> a = getWeights(reader, reader.getTermVector(1,CONTENT));
+            double q = getCosineSimilarity(reader, reader.getTermVector(1,CONTENT), reader.getTermVector(1,CONTENT));
             System.out.println(q);
 
             reader.close();
@@ -51,13 +44,13 @@ public class DocumentDistance {
     }
 
 
-    private static Map<String, Double> getWeights(IndexReader reader, int docNum) throws IOException {
+    private static Map<String, Double> getWeights(IndexReader reader, Terms vector) throws IOException {
 
         Map<String, Integer> docFrequencies = new HashMap<>();
         Map<String, Integer> termFrequencies = new HashMap<>();
         Map<String, Double> tf_Idf_Weights = new HashMap<>();
 
-        Terms vector = reader.getTermVector(docNum, CONTENT);
+        //Terms vector = reader.getTermVector(docNum, CONTENT);
         TermsEnum termsEnum = vector.iterator();
         BytesRef text = null;
         PostingsEnum postings = null;
@@ -83,16 +76,18 @@ public class DocumentDistance {
         return tf_Idf_Weights;
     }
 
-    public static double getCosineSimilarity(IndexReader reader, int docNum1, int docNum2) throws IOException {
-        Map<String, Double> tfidf1 = (getWeights(reader, docNum1));
-        Map<String, Double> tfidf2 = (getWeights(reader, docNum2));
+    public static double getCosineSimilarity(IndexReader reader, Terms terms1, Terms terms2) throws IOException {
+        if(terms1 == null || terms2 == null) return -Double.MAX_VALUE;
+
+        Map<String, Double> tfidf1 = (getWeights(reader, terms1));
+        Map<String, Double> tfidf2 = (getWeights(reader, terms2));
         RealVector v1 = toRealVector(tfidf1);
         RealVector v2 = toRealVector(tfidf2);
         double dotProduct = v1.dotProduct(v2);
-        System.out.println("Dot: " + dotProduct);
-        System.out.println("V1_norm: " + v1.getNorm() + ", V2_norm: " + v2.getNorm());
+        //System.out.println("Dot: " + dotProduct);
+        //System.out.println("V1_norm: " + v1.getNorm() + ", V2_norm: " + v2.getNorm());
         double normalization = (v1.getNorm() * v2.getNorm());
-        System.out.println("Norm: " + normalization);
+       // System.out.println("Norm: " + normalization);
         return dotProduct / normalization;
     }
 
