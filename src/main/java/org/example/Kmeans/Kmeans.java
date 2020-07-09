@@ -36,10 +36,7 @@ public class Kmeans {
 
          //   List<Centroid> centroids = randomCentroids(10000);
 
-            Map<Centroid, List<Integer>> listMap = fit(2, 2);
-
-            int x = 4;
-
+            Map<Centroid, List<Integer>> listMap = fit(1000, 15);
 
             LocalDateTime end = LocalDateTime.now();
             Duration timeElapsed = Duration.between(start, end);
