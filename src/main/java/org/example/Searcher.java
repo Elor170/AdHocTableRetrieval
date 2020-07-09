@@ -30,12 +30,10 @@ import java.util.Scanner;
 
 public class Searcher {
 
-    static float INTERESTINGNESS_WEIGHT = 0.1f; // not relevant
-    //TODO find the optimal weights & alpha-delta
-    static float TITLE_WEIGHT = 1.613f;
-    static float CAPTION_WEIGHT = 1.118f;
-    static float HEADER_WEIGHT = 0.218f ;// not relevant
-    static float COLUMN_WEIGHT = 1f;
+    static final float TITLE_WEIGHT = 1.613f;
+    static final float CAPTION_WEIGHT = 1.118f;
+    static final float HEADER_WEIGHT = 0.218f;
+    static final float COLUMN_WEIGHT = 1f;
 
     static final String TEAM_NAME = "Elor_Lior";
     static final String TAB = "\t";
@@ -57,13 +55,6 @@ public class Searcher {
         if (RUN_AUTO_EVALUATION)
             runEvaluation();
 
-
-        try {
-            Thread.sleep(3000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-
         LocalDateTime end = LocalDateTime.now();
         Duration timeElapsed = Duration.between(start, end);
         System.out.println("Time taken: " + timeElapsed.toMinutes() + " minutes " +
@@ -76,10 +67,9 @@ public class Searcher {
         Directory indexDirectory = FSDirectory.open(Paths.get("src\\main\\resources\\index"));
         IndexReader indexReader = DirectoryReader.open(indexDirectory);
         IndexSearcher indexSearcher = new IndexSearcher(indexReader);
-        Similarity similarity = new BM25Similarity(1.2f,0.75f);
-        indexSearcher.setSimilarity(similarity);
         FileWriter fw = new FileWriter(OUT_FILE);
 
+        // read queries
         File queriesFile = new File("src\\main\\resources\\queries.txt");
         Scanner fileReader = new Scanner(queriesFile);
         while (fileReader.hasNextLine()) {
@@ -88,11 +78,11 @@ public class Searcher {
             String queryId;
             String queryString;
 
-            if (idEndIndex != -1) {
+            if (idEndIndex != -1) { // not empty query
                 queryId = queryLine.substring(0, idEndIndex);
                 queryString = queryLine.substring(idEndIndex + 1);
             }
-            else {
+            else { // empty query (query #5)
                 queryId = queryLine;
                 queryString = TAB;
                 System.out.print(queryId);
@@ -117,18 +107,16 @@ public class Searcher {
         fieldsWeights.put("caption", CAPTION_WEIGHT);
         fieldsWeights.put("header", HEADER_WEIGHT);
         fieldsWeights.put("column", COLUMN_WEIGHT);
-        fieldsWeights.put("interestingness", INTERESTINGNESS_WEIGHT);
 
         Query query;
-        // empty query case (query #5)
-        if (queryString.equals(TAB))
+        if (queryString.equals(TAB)) // empty query case (query #5)
             query = new MatchAllDocsQuery();
         else {
             QueryParser queryParser = new MultiFieldQueryParser(fieldsNames, analyzer, fieldsWeights);
             query = queryParser.parse(queryString);
         }
 
-        //add Interstigness - not working
+        //Interstigness - not added decrease NDCG
         DoubleValuesSource boostByField = DoubleValuesSource.fromFloatField("interestingness");
         FunctionScoreQuery modifiedQuery = new FunctionScoreQuery(query, boostByField);
 
@@ -143,12 +131,11 @@ public class Searcher {
             String iteration = "Q0";
 
             String table_id = document.get("id");
-            //TODO need to implement
 
             int rank = 0;
-            if (Double.parseDouble(docScoring) >= 15)
+            if (Double.parseDouble(docScoring) >= 16)
                 rank = 2;
-            else if (Double.parseDouble(docScoring) >= 10)
+            else if (Double.parseDouble(docScoring) >= 13)
                 rank = 1;
 
             System.out.print(queryId + TAB);
@@ -159,7 +146,7 @@ public class Searcher {
             System.out.println(TEAM_NAME);
 
 
-            String result = String.format("%s %s %s %s %s %s",
+            String result = String.format("%s   %s  %s  %s  %s  %s",
                                            queryId,
                                            iteration,
                                            table_id,
@@ -173,7 +160,7 @@ public class Searcher {
 
     private static void runEvaluation(){
         try {
-            String[] command = {"cmd.exe", "/C", "Start", "trec_batch_ndcg_cut.bat"};
+            String[] command = {"cmd.exe", "/C", "Start", "trec_ndcg.bat"};
             File dir = new File("trec_eval");
             ProcessBuilder pb = new ProcessBuilder(command);
             pb.directory(dir);
